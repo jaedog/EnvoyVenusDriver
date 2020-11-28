@@ -1,0 +1,14 @@
+Promethius:
+    port: 8000
+
+# The envoy installer password generator has been created here:
+# https://thecomputerperson.wordpress.com/2018/08/18/what-is-inside-the-enphase-envoy-s-teardown/
+# It is an android app that uses the Envoy Toolkit binary to generate the unique password based
+# on the Envoy serial number
+Envoy:
+    address: IP_ADDR_OF_ENVOY
+    password: INSTALLER_PWD_OF_ENVOY
+
+# serial number of the iq7 micro-inverters and their location
+IQ7s:
+    "1220130XXXXX": "string_1"
