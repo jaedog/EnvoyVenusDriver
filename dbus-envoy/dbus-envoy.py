@@ -129,6 +129,10 @@ dbusservice.add_path('/Ac/L2/Energy/Forward', value=0)
 dbusservice.add_path('/Ac/L2/Power', value=0)
 dbusservice.add_path('/Ac/L2/Voltage', value=0)
 dbusservice.add_path('/StatusCode', value=7)
+
+# /Position     <- Input 1 = 0
+#                  Output = 1
+#                  Input 2 = 2
 dbusservice.add_path('/Position', value=1)
 
 stream_gauges = {
