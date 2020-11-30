@@ -45,8 +45,8 @@ logger = logging.getLogger("dbus-envoy")
 # global logger for all modules imported here
 #logger = logging.getLogger()
 
-logger.setLevel(logging.DEBUG)
-#logger.setLevel(logging.INFO)
+#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 driver_start_time = datetime.now()
 
@@ -193,7 +193,7 @@ def scrape_stream():
                   dbusservice['/Ac/L1/Voltage'] = data.get(meter_type, {}).get(phase, {})['v']
 
                 elif (phase == 'ph-b') :
-                  logger.debug ("Total Power: {0}W".format(int(total_power)))
+                  logger.info("Total Power: {0}W".format(int(total_power)))
                   dbusservice['/Ac/Energy/Forward'] = 10
                   dbusservice["/Ac/Power"] = total_power
                   dbusservice['/StatusCode'] = 7
@@ -207,7 +207,22 @@ def scrape_stream():
                 if key in stream_gauges:
                   stream_gauges[key].labels(type=meter_type, phase=phase).set(value)
     except requests.exceptions.RequestException as e:
-      print('Exception fetching stream data: %s' % e)
+      logger.debug('Exception fetching stream data: %s' % e)
+
+      dbusservice['/Ac/L1/Current'] = 0
+      dbusservice['/Ac/L1/Energy/Forward'] = 10
+      dbusservice['/Ac/L1/Power'] = 0
+      dbusservice['/Ac/L1/Voltage'] = 0
+      logger.info("Total Power: 0W, offline")
+      dbusservice['/Ac/Energy/Forward'] = 10
+      dbusservice["/Ac/Power"] = 0
+      dbusservice['/StatusCode'] = 10
+
+      dbusservice['/Ac/L2/Current'] = 0
+      dbusservice['/Ac/L2/Energy/Forward'] = 10
+      dbusservice['/Ac/L2/Power'] = 0
+      dbusservice['/Ac/L2/Voltage'] = 0
+
       time.sleep(5)
 
 
