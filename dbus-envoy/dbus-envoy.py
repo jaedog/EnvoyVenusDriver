@@ -81,6 +81,18 @@ keep_running = True
 # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
 DBusGMainLoop(set_as_default=True)
 
+# callback that gets called every time a dbus value has changed
+def _dbus_value_changed(dbusServiceName, dbusPath, dict, changes, deviceInstance):
+  pass
+
+# Why this dummy? Because DbusMonitor expects these values to be there, even though we don't
+# need them. So just add some dummy data. This can go away when DbusMonitor is more generic.
+dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
+dbus_tree = {'com.victronenergy.system': 
+  {'/Dc/Battery/Soc': dummy, }}
+
+dbusmonitor = DbusMonitor(dbus_tree, valueChangedCallback=_dbus_value_changed)
+
 # connect and register to dbus
 driver = {
   'name'        : "Enphase Envoy",
@@ -168,8 +180,20 @@ inverter_gauges = {
 
 def scrape_stream():
   logger.debug("start stream thread")
+
+  #get some data from the Victron BUS, invalid data returns NoneType
+  raw_soc = dbusmonitor.get_value('com.victronenergy.system', '/Dc/Battery/Soc')
+  if (raw_soc == None) :
+    logger.debug("SOC is invalid")
+    global keep_running
+    keep_running = False
+    sys.exit()
+
   while 1:
-    try:
+
+
+
+    #try:
       url = 'http://%s/stream/meter' % host
       stream = requests.get(url, auth=auth, stream=True, timeout=5)
       for line in stream.iter_lines():
@@ -206,24 +230,24 @@ def scrape_stream():
               for key, value in data.get(meter_type, {}).get(phase, {}).items():
                 if key in stream_gauges:
                   stream_gauges[key].labels(type=meter_type, phase=phase).set(value)
-    except requests.exceptions.RequestException as e:
-      logger.debug('Exception fetching stream data: %s' % e)
+    # except requests.exceptions.RequestException as e:
+    #   logger.debug('Exception fetching stream data: %s' % e)
 
-      dbusservice['/Ac/L1/Current'] = 0
-      dbusservice['/Ac/L1/Energy/Forward'] = 10
-      dbusservice['/Ac/L1/Power'] = 0
-      dbusservice['/Ac/L1/Voltage'] = 0
-      logger.info("Total Power: 0W, offline")
-      dbusservice['/Ac/Energy/Forward'] = 10
-      dbusservice["/Ac/Power"] = 0
-      dbusservice['/StatusCode'] = 10
+    #   dbusservice['/Ac/L1/Current'] = 0
+    #   dbusservice['/Ac/L1/Energy/Forward'] = 10
+    #   dbusservice['/Ac/L1/Power'] = 0
+    #   dbusservice['/Ac/L1/Voltage'] = 0
+    #   logger.info("Total Power: 0W, offline")
+    #   dbusservice['/Ac/Energy/Forward'] = 10
+    #   dbusservice["/Ac/Power"] = 0
+    #   dbusservice['/StatusCode'] = 10
 
-      dbusservice['/Ac/L2/Current'] = 0
-      dbusservice['/Ac/L2/Energy/Forward'] = 10
-      dbusservice['/Ac/L2/Power'] = 0
-      dbusservice['/Ac/L2/Voltage'] = 0
+    #   dbusservice['/Ac/L2/Current'] = 0
+    #   dbusservice['/Ac/L2/Energy/Forward'] = 10
+    #   dbusservice['/Ac/L2/Power'] = 0
+    #   dbusservice['/Ac/L2/Voltage'] = 0
 
-      time.sleep(5)
+    #   time.sleep(5)
 
 
 def scrape_production_json():
