@@ -252,7 +252,7 @@ def scrape_stream():
 
 def scrape_production_json():
   url = 'http://%s/production.json' % host
-  data = requests.get(url).json()
+  data = requests.get(url, timeout=5).json()
   production = data['production']
   #print(production)
   for each in production:
@@ -287,6 +287,9 @@ def scrape_handler():
     scrape_inverters()
   except Exception as e:
     print('Exception fetching scrape data: %s' % e)
+    global keep_running
+    keep_running = False
+    sys.exit()
   
   return True  # keep timer running
 
