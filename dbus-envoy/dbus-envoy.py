@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""dbus-envoy.py: Driver to integrate the Enphase Envoy pv micro-inverters 
-        with Victron Venus OS. """
-# requires: pip install pyyaml prometheus_client
+"""dbus-envoy.py: Driver to integrate the Enphase Envoy pv micro-inverters with Victron Venus OS. """
+# requires pyyaml, prometheus_client
+# if not installed execute this
+# opkg update && opkg install python3-pip
+# python -m pip install pyyaml prometheus_client
+
 
 __author__      = "github usernames: jaedog"
-__copyright__   = "Copyright 2020"
+__copyright__   = "Copyright 2022"
 __license__     = "MIT"
-__version__     = "0.1"
+__version__     = "0.2"
 
 # original scrape.py:
 # https://github.com/petercable/solar-observatory/
@@ -31,7 +34,10 @@ from prometheus_client import start_http_server, Gauge
 
 from dbus.mainloop.glib import DBusGMainLoop
 import dbus
-import gobject
+try:
+  import gobject  # Python 2.x
+except:
+  from gi.repository import GLib as gobject # Python 3.x
 
 # Victron packages
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext', 'velib_python'))
@@ -45,8 +51,8 @@ logger = logging.getLogger("dbus-envoy")
 # global logger for all modules imported here
 #logger = logging.getLogger()
 
-#logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.INFO)
 
 driver_start_time = datetime.now()
 
@@ -88,7 +94,7 @@ def _dbus_value_changed(dbusServiceName, dbusPath, dict, changes, deviceInstance
 # Why this dummy? Because DbusMonitor expects these values to be there, even though we don't
 # need them. So just add some dummy data. This can go away when DbusMonitor is more generic.
 dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-dbus_tree = {'com.victronenergy.system': 
+dbus_tree = {'com.victronenergy.system':
   {'/Dc/Battery/Soc': dummy, }}
 
 dbusmonitor = DbusMonitor(dbus_tree, valueChangedCallback=_dbus_value_changed)
@@ -103,6 +109,7 @@ driver = {
 }
 
 def create_dbus_service():
+  logger.debug("step: create_dbus_service")
   dbusservice = VeDbusService('com.victronenergy.pvinverter.envoy')
   dbusservice.add_mandatory_paths(
   processname=__file__,
@@ -179,19 +186,17 @@ inverter_gauges = {
 
 
 def scrape_stream():
-  logger.debug("start stream thread")
+  logger.debug("step: scrape_stream")
 
   #get some data from the Victron BUS, invalid data returns NoneType
   raw_soc = dbusmonitor.get_value('com.victronenergy.system', '/Dc/Battery/Soc')
   if (raw_soc == None) :
-    logger.debug("SOC is invalid")
+    logger.debug("SOC is invalid: {}".format(raw_soc))
     global keep_running
     keep_running = False
     sys.exit()
 
   while 1:
-
-
 
     #try:
       url = 'http://%s/stream/meter' % host
@@ -251,6 +256,7 @@ def scrape_stream():
 
 
 def scrape_production_json():
+  logger.debug("step: scrape_production_json")
   url = 'http://%s/production.json' % host
   data = requests.get(url, timeout=5).json()
   production = data['production']
@@ -272,6 +278,7 @@ def scrape_production_json():
 
 
 def scrape_inverters():
+  logger.debug("step: scrape_handler")
   url = 'http://%s/api/v1/production/inverters' % host
   data = requests.get(url, auth=auth).json()
   #print(data)
@@ -282,6 +289,7 @@ def scrape_inverters():
     inverter_gauges['max'].labels(serial=serial, location=location).set(inverter['maxReportWatts'])
 
 def scrape_handler():
+  logger.debug("step: scrape_handler")
   try:
     scrape_production_json()
     scrape_inverters()
@@ -290,10 +298,11 @@ def scrape_handler():
     global keep_running
     keep_running = False
     sys.exit()
-  
+
   return True  # keep timer running
 
 def exit(signal, frame):
+  logger.debug("step: exit")
   global keep_running
   keep_running = False
 
@@ -306,10 +315,10 @@ def main():
   stream_thread = threading.Thread(target=scrape_stream)
   stream_thread.setDaemon(True)
   stream_thread.start()
-  
+
   global _mainloop
   _mainloop = gobject.MainLoop()
-  gobject.threads_init()
+  #gobject.threads_init()  # not needed with Python 3.x
   context = _mainloop.get_context()
 
   signal.signal(signal.SIGINT, exit)
